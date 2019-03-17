@@ -19,6 +19,10 @@ using namespace std;
 #define FALSE 0
 #define PORT 8080
 
+// array
+template <typename T,unsigned S>
+inline unsigned arraysize(const T (&v)[S]) { return S; }
+
 int main(int argc , char *argv[])
 {
     int opt = TRUE;
@@ -26,6 +30,7 @@ int main(int argc , char *argv[])
             max_clients = 30 , activity, i , valread , sd;
     int max_sd;
     struct sockaddr_in address;
+    string users[30];
 
     char buffer[1025]; //data buffer of 1K
 
@@ -129,14 +134,6 @@ int main(int argc , char *argv[])
             printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , new_socket , inet_ntoa(address.sin_addr) , ntohs
                     (address.sin_port));
 
-            //send new connection greeting message
-//            if( send(new_socket, message, strlen(message), 0) != strlen(message) )
-//            {
-//                perror("send");
-//            }
-
-            puts("Welcome message sent successfully");
-
             //add new socket to array of sockets
             for (i = 0; i < max_clients; i++)
             {
@@ -164,7 +161,7 @@ int main(int argc , char *argv[])
                 {
                     //Somebody disconnected , get his details and print
                     getpeername(sd , (struct sockaddr*)&address , \
-						(socklen_t*)&addrlen);
+                        (socklen_t*)&addrlen);
                     printf("Host disconnected , ip %s , port %d \n" ,
                            inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
 
@@ -181,15 +178,33 @@ int main(int argc , char *argv[])
                     buffer[valread] = '\0';
 
                     string result = buffer;
+                    string username;
                     const char* messageFromServer;
                     if (result.find("HELLO-FROM ") != std::string::npos) {
-                        string username = result.substr(11, sizeof(result));
-                        messageFromServer = ("HELLO!! " + username).c_str();
+                        username = result.substr(11, sizeof(result));
+                        messageFromServer = ("HELLO " + username).c_str();
                     }
+                    users[sd] = username;
+                    string message = "WHO-OK ";
+
+                    if (result.find("WHO\n") != std::string::npos) {
+                        for(const string &text : users){
+                            message += text + ",";
+                        }
+
+
+                        int messageLength = sizeof(message);
+                        string withoutComma = message.substr(0, messageLength-1);
+                        withoutComma += "\n";
+                        messageFromServer = withoutComma.c_str();
+
+                        printf("hello %s\n",messageFromServer );
+                    }
+
 
                     printf("%s\n",buffer );
 
-                    send(sd , messageFromServer , strlen(buffer) , 0 );
+                    send(sd , messageFromServer , strlen(messageFromServer) , 0 );
                 }
             }
         }
