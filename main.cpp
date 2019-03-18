@@ -26,12 +26,13 @@ inline unsigned arraysize(const T (&v)[S]) { return S; }
 
 int main(int argc , char *argv[])
 {
+    int count;
     int opt = TRUE;
-    int master_socket , addrlen , new_socket , client_socket[30] ,
-            max_clients = 30 , activity, i , valread , sd;
+    int max_clients = 30;
+    int master_socket , addrlen , new_socket , client_socket[max_clients] , activity, i , valread , sd;
     int max_sd;
     struct sockaddr_in address;
-    string users[30];
+    string users[max_clients];
 
     for (int l = 0; l < max_clients; ++l) {
         users[l] = DONT_USE;
@@ -145,9 +146,15 @@ int main(int argc , char *argv[])
                 //if position is empty
                 if( client_socket[i] == 0 )
                 {
-                    client_socket[i] = new_socket;
-                    printf("Adding to list of sockets as %d\n" , i);
-
+                    if(count == max_clients-1){
+                        string isBusy = "BUSY\n";
+                        send(new_socket, isBusy.c_str(), strlen(isBusy.c_str()), 0);
+                    }
+                    else{
+                        client_socket[i] = new_socket;
+                        count++;
+                        printf("Adding to list of sockets as %d\n" , i);
+                    }
                     break;
                 }
             }
@@ -170,6 +177,8 @@ int main(int argc , char *argv[])
                         (socklen_t*)&addrlen);
                     printf("Host disconnected , ip %s , port %d \n" ,
                            inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+
+                    //remove username from server
                     users[sd] = DONT_USE;
 
 
@@ -187,17 +196,29 @@ int main(int argc , char *argv[])
 
                     string result = buffer;
                     string username;
-                    const char* messageFromServer;
+                    const char* messageFromServer = "";
+
                     if (result.find("HELLO-FROM ") != std::string::npos) {
-                        username = result.substr(11, result.length());
-                        username.pop_back();
-                        messageFromServer = ("HELLO " + username + "\n").c_str();
 
-                        int lengthOfUsername = sizeof(username);
-                        users[sd] = username;
+                        string isInUse = "IN-USE\n";
+                        for (int k = 0; k < max_clients; k++) {
+                            if(result.find(users[k]) != std::string::npos) {
+                                messageFromServer = isInUse.c_str();
+                                k = max_clients;
+                            }
+                        }
+
+                        if (strncmp("IN-USE\n", messageFromServer, 6) != 0) {
+                            username = result.substr(11, result.length());
+
+                            // remove '\n' from username
+                            username.pop_back();
+                            messageFromServer = ("HELLO " + username + "\n").c_str();
+                            users[sd] = username;
+                        }
                     }
-                    string message = "WHO-OK ";
 
+                    string message = "WHO-OK ";
                     if (result.find("WHO\n") != std::string::npos) {
                         for (int j = 0; j < max_clients; j++) {
                             if(users[j] != DONT_USE) {
@@ -214,8 +235,8 @@ int main(int argc , char *argv[])
                     }
 
                     string chatMessage;
-                    string toUser;
-                    int sdTo;
+                    string toUser = "";
+                    int sdTo = 0;
                     if (result.find("SEND ") != std::string::npos) {
                         chatMessage = result.substr((5), result.size());
                         for (int k = 0; k < max_clients; k++) {
@@ -224,10 +245,19 @@ int main(int argc , char *argv[])
                                 sdTo = k;
                             }
                         }
-                        chatMessage = chatMessage.substr(toUser.length()+1, chatMessage.length());
-                        send(sdTo, chatMessage.c_str(), strlen(chatMessage.c_str()), 0);
-                        string sendOk = "SEND-OK\n";
-                        messageFromServer = sendOk.c_str();
+
+                        if(users[sdTo] != DONT_USE){
+                            chatMessage = chatMessage.substr(toUser.length() + 1, chatMessage.length());
+                            send(sdTo, chatMessage.c_str(), strlen(chatMessage.c_str()), 0);
+                            string sendOk = "SEND-OK\n";
+                            messageFromServer = sendOk.c_str();
+                        }
+                        // if client is not logged in.
+                        else{
+                            string isUnknown = "UNKNOWN\n";
+                            messageFromServer = isUnknown.c_str();
+
+                        }
                     }
 
                     printf("%s\n",buffer);
