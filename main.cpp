@@ -191,31 +191,42 @@ int main(int argc , char *argv[])
                     string username;
                     const char* messageFromServer = "";
                     string message = "WHO-OK ";
-
+                    const char  *isInUse = "IN-USE\n";
+                    const char *badBody = "BAD-RQST-BODY\n";
+                    const char *badHeader = "BAD-RQST-HEADER\n";
                     string chatMessage;
                     string toUser = "";
                     int sdTo = 0;
 
-                    if (result.find("HELLO-FROM ") != std::string::npos) {
-
-                        string isInUse = "IN-USE\n";
+                    if (result.find("HELLO-FROM") != std::string::npos) {
                         for (int k = 0; k < max_clients; k++) {
                             if(result.find(users[k]) != std::string::npos) {
-                                messageFromServer = isInUse.c_str();
-                                k = max_clients;
+                                messageFromServer = isInUse;
+                                break;
+                            }
+                            if(result.find("%") != std::string::npos) {
+                                printf("! badbrody\n");
+                                messageFromServer = badBody;
+                                break;
+
                             }
                         }
 
-                        if (strncmp("IN-USE\n", messageFromServer, 6) != 0) {
+                        if (messageFromServer == isInUse) {
+//                            users[sd] = username;
+                            messageFromServer = (isInUse);
+                        }
+                        else if (messageFromServer == badBody) {
+                            printf("! badbrody2\n");
+                            messageFromServer = badBody;
+                        }
+                        else {
                             username = result.substr(11, result.length());
-
-                            // remove '\n' from username
                             username.pop_back();
                             messageFromServer = ("HELLO " + username + "\n").c_str();
                             users[sd] = username;
                         }
                     }
-
 
                     else if (result.find("WHO\n") != std::string::npos) {
                         for (int j = 0; j < max_clients; j++) {
@@ -256,8 +267,9 @@ int main(int argc , char *argv[])
                         }
                     }
 
-                    else{
-                        messageFromServer = "BAD-RQST-BODY\n";
+                    else if(result.find("falsecommand")  != std::string::npos) {
+                        printf("no command");
+                        messageFromServer = badHeader;
                     }
 
                     printf("%s\n",buffer);
