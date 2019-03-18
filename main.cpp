@@ -72,7 +72,7 @@ int main(int argc , char *argv[])
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons( PORT );
 
-    //bind the socket to localhost port 8888
+    //bind the socket to localhost port 8080
     if (bind(master_socket, (struct sockaddr *)&address, sizeof(address))<0)
     {
         perror("bind failed");
@@ -170,6 +170,8 @@ int main(int argc , char *argv[])
                         (socklen_t*)&addrlen);
                     printf("Host disconnected , ip %s , port %d \n" ,
                            inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+                    users[sd] = DONT_USE;
+
 
                     //Close the socket and mark as 0 in list for reuse
                     close( sd );
@@ -224,7 +226,8 @@ int main(int argc , char *argv[])
                         }
                         chatMessage = chatMessage.substr(toUser.length()+1, chatMessage.length());
                         send(sdTo, chatMessage.c_str(), strlen(chatMessage.c_str()), 0);
-                        messageFromServer = "SEND-OK\n";
+                        string sendOk = "SEND-OK\n";
+                        messageFromServer = sendOk.c_str();
                     }
 
                     printf("%s\n",buffer);
