@@ -1,192 +1,180 @@
-//Example code: A simple server side code, which echos back the received message. 
-//Handle multiple socket connections with select and fd_set on Linux 
-#include <stdio.h>
-#include <string.h> //strlen 
-#include <stdlib.h>
 #include <errno.h>
-#include <unistd.h> //close 
-#include <arpa/inet.h> //close 
-#include <sys/types.h>
+#include <stdio.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros 
+#include <string.h>
 #include <string>
 #include <cstring>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/time.h>
 
 using namespace std;
 
-#define TRUE 1
 #define PORT 8080
 #define DONT_USE "wy=$?9q=z3QARXsQ"
 
-int main(int argc , char *argv[])
+int main()
 {
+    // declare variables
     int count;
-    int opt = TRUE;
-    int max_clients = 30;
-    int master_socket , addrlen , new_socket , client_socket[max_clients] , activity, i , valread , sd;
-    int max_sd;
+    int sockopt = 1;
+    int clientSize = 30;
+    int sockfd , addrlen , new_socket , client_socket[clientSize] , activity, i , readMessage , sock, max_sd;
     struct sockaddr_in address;
-    string users[max_clients];
+    string users[clientSize];
 
-    for (int l = 0; l < max_clients; ++l) {
-        users[l] = DONT_USE;
+    for (int i = 0; i < clientSize; ++i) {
+        users[i] = DONT_USE;
     }
-    
-    char buffer[1025]; //data buffer of 1K
+
+    //data buffer
+    char buffer[1025];
 
     //set of socket descriptors
-    fd_set readfds;
+    fd_set socketdescriptor;
 
-
-    //initialise all client_socket[] to 0 so not checked
-    for (i = 0; i < max_clients; i++)
+    //initialise all client_sockets
+    for (i = 0; i < clientSize; i++)
     {
         client_socket[i] = 0;
     }
 
-    //create a master socket
-    if( (master_socket = socket(AF_INET , SOCK_STREAM , 0)) == 0)
+    //create a socket
+    if( (sockfd = socket(AF_INET , SOCK_STREAM , 0)) == 0)
     {
-        perror("socket failed");
+        perror("creating socket failure");
         exit(EXIT_FAILURE);
     }
 
-    //set master socket to allow multiple connections ,
-    //this is just a good habit, it will work without this
-    if( setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt,
-                   sizeof(opt)) < 0 )
+    // set socket options
+    if( setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *)&sockopt,
+                   sizeof(sockopt)) < 0 )
     {
-        perror("setsockopt");
+        perror("setsockopt failure");
         exit(EXIT_FAILURE);
     }
 
-    //type of socket created
+    //specify attributes for socket
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( PORT );
+    address.sin_port = htons(PORT);
 
-    //bind the socket to localhost port 8080
-    if (bind(master_socket, (struct sockaddr *)&address, sizeof(address))<0)
+    //bind the socket to port
+    if (bind(sockfd, (struct sockaddr *)&address, sizeof(address))<0)
     {
-        perror("bind failed");
+        perror("bind failure");
         exit(EXIT_FAILURE);
     }
-    printf("Listener on port %d \n", PORT);
 
     //try to specify maximum of 3 pending connections for the master socket
-    if (listen(master_socket, 3) < 0)
+    if (listen(sockfd, 3) < 0)
     {
         perror("listen");
         exit(EXIT_FAILURE);
     }
-
+    printf("Listening on port: %d \n", PORT);
     //accept the incoming connection
     addrlen = sizeof(address);
-    puts("Waiting for connections ...");
+    puts("Ready for connections");
 
-    while(TRUE)
+    while(true)
     {
-        //clear the socket set
-        FD_ZERO(&readfds);
+        //clear the set
+        FD_ZERO(&socketdescriptor);
 
-        //add master socket to set
-        FD_SET(master_socket, &readfds);
-        max_sd = master_socket;
+        //add socket to set
+        FD_SET(sockfd, &socketdescriptor);
+        max_sd = sockfd;
 
-        //add child sockets to set
-        for ( i = 0 ; i < max_clients ; i++)
+        for ( i = 0 ; i < clientSize ; i++)
         {
             //socket descriptor
-            sd = client_socket[i];
+            sock = client_socket[i];
 
-            //if valid socket descriptor then add to read list
-            if(sd > 0)
-                FD_SET( sd , &readfds);
+            //if valid socket descriptor then add
+            if(sock > 0)
+                FD_SET( sock , &socketdescriptor);
 
-            //highest file descriptor number, need it for the select function
-            if(sd > max_sd)
-                max_sd = sd;
+            //highest file descriptor number
+            if(sock > max_sd)
+                max_sd = sock;
         }
 
-        //wait for an activity on one of the sockets , timeout is NULL ,
-        //so wait indefinitely
-        activity = select( max_sd + 1 , &readfds , NULL , NULL , NULL);
+        //wait for an activity of sockets
+        activity = select( max_sd + 1 , &socketdescriptor , NULL , NULL , NULL);
 
         if ((activity < 0) && (errno!=EINTR))
         {
             printf("select error");
         }
 
-        //If something happened on the master socket ,
-        //then its an incoming connection
-        if (FD_ISSET(master_socket, &readfds))
+        if (FD_ISSET(sockfd, &socketdescriptor))
         {
-            if ((new_socket = accept(master_socket,
+            // accept incoming connections
+            if ((new_socket = accept(sockfd,
                                      (struct sockaddr *)&address, (socklen_t*)&addrlen))<0)
             {
-                perror("accept");
+                perror("accept failure");
                 exit(EXIT_FAILURE);
             }
 
-            //inform user of socket number - used in send and receive commands
-            printf("New connection , socket fd is %d , ip is : %s , port : %d\n" , new_socket , inet_ntoa(address.sin_addr) , ntohs
-                    (address.sin_port));
+            //print the new connection of a socket
+            printf("New incoming connection. Socket fd: %d , ip: %s , port: %d\n" , new_socket ,
+                    inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
 
-            //add new socket to array of sockets
-            for (i = 0; i < max_clients; i++)
+            //add new socket to array
+            for (i = 0; i < clientSize; i++)
             {
                 //if position is empty
                 if( client_socket[i] == 0 )
                 {
-                    if(count == max_clients-1){
+                    if(count == clientSize-1){
                         string isBusy = "BUSY\n";
                         send(new_socket, isBusy.c_str(), strlen(isBusy.c_str()), 0);
                     }
                     else{
                         client_socket[i] = new_socket;
                         count++;
-                        printf("Adding to list of sockets as %d\n" , i);
+                        printf("Add socket on index: %d\n" , i);
                     }
                     break;
                 }
             }
         }
 
-        //else its some IO operation on some other socket
-        for (i = 0; i < max_clients; i++)
+        for (i = 0; i < clientSize; i++)
         {
-            sd = client_socket[i];
+            sock = client_socket[i];
 
-
-            if (FD_ISSET( sd , &readfds))
+            if (FD_ISSET( sock , &socketdescriptor))
             {
-                //Check if it was for closing , and also read the
-                //incoming message
-                if ((valread = read( sd , buffer, 1024)) == 0)
+                // read incoming message
+                if ((readMessage = read( sock , buffer, 1024)) == 0)
                 {
-                    //Somebody disconnected , get his details and print
-                    getpeername(sd , (struct sockaddr*)&address , \
+                    // show disconnected host
+                    getpeername(sock , (struct sockaddr*)&address , \
                         (socklen_t*)&addrlen);
-                    printf("Host disconnected , ip %s , port %d \n" ,
+                    printf("Host disconnected. ip: %s. port: %d \n" ,
                            inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
 
                     //remove username from server
-                    users[sd] = DONT_USE;
-
+                    users[sock] = DONT_USE;
 
                     //Close the socket and mark as 0 in list for reuse
-                    close( sd );
+                    close(sock);
                     client_socket[i] = 0;
                 }
 
-                //Echo back the message that came in
+                //Handle requests from hosts
                 else
                 {
-                    //set the string terminating NULL byte on the end
-                    //of the data read
-                    buffer[valread] = '\0';
+                    // set null on end of message
+                    buffer[readMessage] = '\0';
 
+                    // declare variables
                     string result = buffer;
                     string username;
                     const char* messageFromServer = "";
@@ -198,14 +186,16 @@ int main(int argc , char *argv[])
                     string toUser = "";
                     int sdTo = 0;
 
+                    // first handshake
                     if (result.find("HELLO-FROM") != std::string::npos) {
-                        for (int k = 0; k < max_clients; k++) {
+                        for (int k = 0; k < clientSize; k++) {
+                            // checks if username is already used
                             if(result.find(users[k]) != std::string::npos) {
                                 messageFromServer = isInUse;
                                 break;
                             }
+                            // username cannot contain mentioned character
                             if(result.find("%") != std::string::npos) {
-                                printf("! badbrody\n");
                                 messageFromServer = badBody;
                                 break;
 
@@ -213,40 +203,38 @@ int main(int argc , char *argv[])
                         }
 
                         if (messageFromServer == isInUse) {
-//                            users[sd] = username;
                             messageFromServer = (isInUse);
                         }
                         else if (messageFromServer == badBody) {
-                            printf("! badbrody2\n");
                             messageFromServer = badBody;
                         }
                         else {
                             username = result.substr(11, result.length());
                             username.pop_back();
                             messageFromServer = ("HELLO " + username + "\n").c_str();
-                            users[sd] = username;
+                            users[sock] = username;
                         }
                     }
 
+                    // when hosts request to see all hosts on the server
                     else if (result.find("WHO\n") != std::string::npos) {
-                        for (int j = 0; j < max_clients; j++) {
+                        for (int j = 0; j < clientSize; j++) {
                             if(users[j] != DONT_USE) {
                                 message += users[j] + ", ";
                             }
                         }
-
                         printf("message: %s\n",message.c_str());
                         message.pop_back();
                         message.pop_back();
-
                         message += "\n";
                         messageFromServer = message.c_str();
                     }
 
 
+                    // when hosts wants to send a message to another host
                     else if (result.find("SEND ") != std::string::npos) {
                         chatMessage = result.substr((5), result.size());
-                        for (int k = 0; k < max_clients; k++) {
+                        for (int k = 0; k < clientSize; k++) {
                             if(chatMessage.find(users[k]) != std::string::npos) {
                                 toUser = users[k];
                                 sdTo = k;
@@ -254,12 +242,12 @@ int main(int argc , char *argv[])
                         }
 
                         if(users[sdTo] != DONT_USE){
-                            chatMessage = "DELIVERY " + users[sd] + " " + chatMessage.substr(toUser.length() + 1, chatMessage.length());
+                            chatMessage = "DELIVERY " + users[sock] + " " + chatMessage.substr(toUser.length() + 1, chatMessage.length());
                             send(sdTo, chatMessage.c_str(), strlen(chatMessage.c_str()), 0);
                             string sendOk = "SEND-OK\n";
                             messageFromServer = sendOk.c_str();
                         }
-                        // if client is not logged in.
+                        // if client is not logged in
                         else{
                             string isUnknown = "UNKNOWN\n";
                             messageFromServer = isUnknown.c_str();
@@ -267,13 +255,14 @@ int main(int argc , char *argv[])
                         }
                     }
 
+                    // all other commands will cause a bad request
                     else if(result.find("falsecommand")  != std::string::npos) {
-                        printf("no command");
                         messageFromServer = badHeader;
                     }
 
+                    // send back message that is suitable
                     printf("%s\n",buffer);
-                    send(sd , messageFromServer , strlen(messageFromServer) , 0 );
+                    send(sock , messageFromServer , strlen(messageFromServer) , 0 );
                 }
             }
         }
