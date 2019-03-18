@@ -153,6 +153,7 @@ int main(int argc , char *argv[])
         {
             sd = client_socket[i];
 
+
             if (FD_ISSET( sd , &readfds))
             {
                 //Check if it was for closing , and also read the
@@ -170,7 +171,7 @@ int main(int argc , char *argv[])
                     client_socket[i] = 0;
                 }
 
-                    //Echo back the message that came in
+                //Echo back the message that came in
                 else
                 {
                     //set the string terminating NULL byte on the end
@@ -181,24 +182,28 @@ int main(int argc , char *argv[])
                     string username;
                     const char* messageFromServer;
                     if (result.find("HELLO-FROM ") != std::string::npos) {
-                        username = result.substr(11, sizeof(result));
-                        messageFromServer = ("HELLO " + username).c_str();
+                        username = result.substr(11, result.length());
+                        username.pop_back();
+                        messageFromServer = ("HELLO " + username + "\n").c_str();
+
+                        int lengthOfUsername = sizeof(username);
+                        users[sd] = username;
                     }
-                    users[sd] = username;
                     string message = "WHO-OK ";
 
                     if (result.find("WHO\n") != std::string::npos) {
-                        for(const string &text : users){
-                            message += text + ",";
+                        for (int j = 0; j < max_clients; j++) {
+                            if(users[j] != "") {
+                                message += users[j] + ", ";
+                            }
                         }
 
+                        printf("message: %s\n",message.c_str());
+                        message.pop_back();
+                        message.pop_back();
 
-                        int messageLength = sizeof(message);
-                        string withoutComma = message.substr(0, messageLength-1);
-                        withoutComma += "\n";
-                        messageFromServer = withoutComma.c_str();
-
-                        printf("hello %s\n",messageFromServer );
+                        message += "\n";
+                        messageFromServer = message.c_str();
                     }
 
 
