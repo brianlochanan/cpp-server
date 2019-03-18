@@ -16,13 +16,8 @@
 using namespace std;
 
 #define TRUE 1
-#define FALSE 0
 #define PORT 8080
 #define DONT_USE "wy=$?9q=z3QARXsQ"
-
-// array
-template <typename T,unsigned S>
-inline unsigned arraysize(const T (&v)[S]) { return S; }
 
 int main(int argc , char *argv[])
 {
@@ -43,8 +38,6 @@ int main(int argc , char *argv[])
     //set of socket descriptors
     fd_set readfds;
 
-    //a message
-    char *message = "ECHO Daemon v1.0 \r\n";
 
     //initialise all client_socket[] to 0 so not checked
     for (i = 0; i < max_clients; i++)
@@ -197,6 +190,11 @@ int main(int argc , char *argv[])
                     string result = buffer;
                     string username;
                     const char* messageFromServer = "";
+                    string message = "WHO-OK ";
+
+                    string chatMessage;
+                    string toUser = "";
+                    int sdTo = 0;
 
                     if (result.find("HELLO-FROM ") != std::string::npos) {
 
@@ -218,8 +216,8 @@ int main(int argc , char *argv[])
                         }
                     }
 
-                    string message = "WHO-OK ";
-                    if (result.find("WHO\n") != std::string::npos) {
+
+                    else if (result.find("WHO\n") != std::string::npos) {
                         for (int j = 0; j < max_clients; j++) {
                             if(users[j] != DONT_USE) {
                                 message += users[j] + ", ";
@@ -234,10 +232,8 @@ int main(int argc , char *argv[])
                         messageFromServer = message.c_str();
                     }
 
-                    string chatMessage;
-                    string toUser = "";
-                    int sdTo = 0;
-                    if (result.find("SEND ") != std::string::npos) {
+
+                    else if (result.find("SEND ") != std::string::npos) {
                         chatMessage = result.substr((5), result.size());
                         for (int k = 0; k < max_clients; k++) {
                             if(chatMessage.find(users[k]) != std::string::npos) {
@@ -247,7 +243,7 @@ int main(int argc , char *argv[])
                         }
 
                         if(users[sdTo] != DONT_USE){
-                            chatMessage = chatMessage.substr(toUser.length() + 1, chatMessage.length());
+                            chatMessage = "DELIVERY " + users[sd] + " " + chatMessage.substr(toUser.length() + 1, chatMessage.length());
                             send(sdTo, chatMessage.c_str(), strlen(chatMessage.c_str()), 0);
                             string sendOk = "SEND-OK\n";
                             messageFromServer = sendOk.c_str();
@@ -260,12 +256,14 @@ int main(int argc , char *argv[])
                         }
                     }
 
+                    else{
+                        messageFromServer = "BAD-RQST-BODY\n";
+                    }
+
                     printf("%s\n",buffer);
                     send(sd , messageFromServer , strlen(messageFromServer) , 0 );
                 }
             }
         }
     }
-
-    return 0;
 } 
