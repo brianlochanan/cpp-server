@@ -18,6 +18,7 @@ using namespace std;
 #define TRUE 1
 #define FALSE 0
 #define PORT 8080
+#define DONT_USE "wy=$?9q=z3QARXsQ"
 
 // array
 template <typename T,unsigned S>
@@ -32,6 +33,10 @@ int main(int argc , char *argv[])
     struct sockaddr_in address;
     string users[30];
 
+    for (int l = 0; l < max_clients; ++l) {
+        users[l] = DONT_USE;
+    }
+    
     char buffer[1025]; //data buffer of 1K
 
     //set of socket descriptors
@@ -193,7 +198,7 @@ int main(int argc , char *argv[])
 
                     if (result.find("WHO\n") != std::string::npos) {
                         for (int j = 0; j < max_clients; j++) {
-                            if(users[j] != "") {
+                            if(users[j] != DONT_USE) {
                                 message += users[j] + ", ";
                             }
                         }
@@ -206,9 +211,23 @@ int main(int argc , char *argv[])
                         messageFromServer = message.c_str();
                     }
 
+                    string chatMessage;
+                    string toUser;
+                    int sdTo;
+                    if (result.find("SEND ") != std::string::npos) {
+                        chatMessage = result.substr((5), result.size());
+                        for (int k = 0; k < max_clients; k++) {
+                            if(chatMessage.find(users[k]) != std::string::npos) {
+                                toUser = users[k];
+                                sdTo = k;
+                            }
+                        }
+                        chatMessage = chatMessage.substr(toUser.length()+1, chatMessage.length());
+                        send(sdTo, chatMessage.c_str(), strlen(chatMessage.c_str()), 0);
+                        messageFromServer = "SEND-OK\n";
+                    }
 
-                    printf("%s\n",buffer );
-
+                    printf("%s\n",buffer);
                     send(sd , messageFromServer , strlen(messageFromServer) , 0 );
                 }
             }
