@@ -182,6 +182,7 @@ int main()
                     const char  *isInUse = "IN-USE\n";
                     const char *badBody = "BAD-RQST-BODY\n";
                     const char *badHeader = "BAD-RQST-HEADER\n";
+
                     string chatMessage;
                     string toUser = "";
                     int sdTo = 0;
@@ -205,19 +206,21 @@ int main()
 
                             messageFromServer = (isInUse);
                         }
-                        else if (messageFromServer == badBody) {
-                            messageFromServer = badBody;
-                        }
+//                        else if (messageFromServer == badBody) {
+//                            messageFromServer = badBody;
+//                        }
                         else {
                             username = result.substr(11, result.length());
                             username.pop_back();
+                            username.pop_back();
                             messageFromServer = ("HELLO " + username + "\n").c_str();
+//                            printf(username.c_str());
                             users[sock] = username;
                         }
                     }
 
                     // when hosts request to see all hosts on the server
-                    else if (result.find("WHO\n") != std::string::npos) {
+                    else if (result.find("WHO") != std::string::npos) {
                         for (int j = 0; j < clientSize; j++) {
                             if(users[j] != DONT_USE) {
                                 message += users[j] + ", ";
@@ -230,15 +233,16 @@ int main()
                         messageFromServer = message.c_str();
                     }
 
-
                     // when hosts wants to send a message to another host
-                    else if (result.find("SEND ") != std::string::npos) {
-                        chatMessage = result.substr((5), result.size());
+                    else if (result.find("SEND") != std::string::npos) {
+                        chatMessage = result;
                         for (int k = 0; k < clientSize; k++) {
-                            if(chatMessage.find(users[k]) != std::string::npos) {
-                                messageFromServer = "SEND-OK\n";
+                            if(result.find(users[k]) != std::string::npos) {
+
+                                // messageFromServer = "SEND-OK\n";
                                 toUser = users[k];
                                 sdTo = k;
+                                k = clientSize;
                             }
                         }
 
@@ -254,11 +258,6 @@ int main()
                             messageFromServer = isUnknown.c_str();
 
                         }
-                    }
-
-                    // all other commands will cause a bad request
-                    else {
-                        messageFromServer = badHeader;
                     }
 
                     // send back message that is suitable
