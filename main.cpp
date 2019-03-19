@@ -198,7 +198,6 @@ int main()
                             if(result.find("%") != std::string::npos) {
                                 messageFromServer = badBody;
                                 break;
-
                             }
                         }
 
@@ -256,7 +255,7 @@ int main()
                     }
 
                     // all other commands will cause a bad request
-                    else if(result.find("falsecommand")  != std::string::npos) {
+                    else {
                         messageFromServer = badHeader;
                     }
 
