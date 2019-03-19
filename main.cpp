@@ -202,6 +202,7 @@ int main()
                         }
 
                         if (messageFromServer == isInUse) {
+
                             messageFromServer = (isInUse);
                         }
                         else if (messageFromServer == badBody) {
@@ -235,6 +236,7 @@ int main()
                         chatMessage = result.substr((5), result.size());
                         for (int k = 0; k < clientSize; k++) {
                             if(chatMessage.find(users[k]) != std::string::npos) {
+                                messageFromServer = "SEND-OK\n";
                                 toUser = users[k];
                                 sdTo = k;
                             }
