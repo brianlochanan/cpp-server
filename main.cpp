@@ -189,34 +189,39 @@ int main()
 
                     // first handshake
                     if (result.find("HELLO-FROM") != std::string::npos) {
+                        string username = result.substr(11, result.length());
+                         username.pop_back();
+                         username.pop_back();
+                         char checkAlpha[username.length()];
+                         strcpy(checkAlpha, username.c_str());
                         for (int k = 0; k < clientSize; k++) {
                             // checks if username is already used
                             if(result.find(users[k]) != std::string::npos) {
                                 messageFromServer = isInUse;
                                 break;
                             }
-                            // username cannot contain mentioned character
-                            if(result.find("%") != std::string::npos) {
-                                messageFromServer = badBody;
-                                break;
-                            }
                         }
+                        for (int j = 0; j < sizeof(checkAlpha); j++) { 
+                            // check if username contains no alpabetic characters
+                            if (!(isalpha(checkAlpha[j]))) { 
+                                messageFromServer = badBody; 
+                                break; 
+                            } }
 
                         if (messageFromServer == isInUse) {
-
                             messageFromServer = (isInUse);
                         }
-//                        else if (messageFromServer == badBody) {
-//                            messageFromServer = badBody;
-//                        }
+                        else if (messageFromServer == badBody) {
+                            messageFromServer = (badBody);
+                        }
                         else {
                             username = result.substr(11, result.length());
                             username.pop_back();
                             username.pop_back();
                             messageFromServer = ("HELLO " + username + "\n").c_str();
-//                            printf(username.c_str());
                             users[sock] = username;
                         }
+
                     }
 
                     // when hosts request to see all hosts on the server
@@ -238,8 +243,6 @@ int main()
                         chatMessage = result;
                         for (int k = 0; k < clientSize; k++) {
                             if(result.find(users[k]) != std::string::npos) {
-
-                                // messageFromServer = "SEND-OK\n";
                                 toUser = users[k];
                                 sdTo = k;
                                 k = clientSize;
@@ -262,6 +265,7 @@ int main()
 
                     // send back message that is suitable
                     printf("%s\n",buffer);
+                    printf("Sending %s to client\n", messageFromServer);
                     send(sock , messageFromServer , strlen(messageFromServer) , 0 );
                 }
             }
